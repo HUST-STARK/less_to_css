@@ -76,7 +76,12 @@ vector<char> buf;
 vector<Word> words;
 //注释表
 vector<Comment> comments;
+//css类表
+vector<Class> res;
 
+void init(){
+//初始化变量
+}
 void read(){
 //将文件中所有字符读到buf中
 
@@ -86,6 +91,14 @@ void get_words(){
 //将单词读入到words中
 
 };
+void deal_var(int& pos){
+
+}
+
+void deal_class(int& pos){
+    //带括号处理变量,遇到变量还是可以调用deal_var();
+
+}
 
 void turn(){
 //将单词处理成变量储存
@@ -96,17 +109,31 @@ void turn(){
         if(type == WORD_VAR){
                 deal_var(pos);
         } else if(type == WORD_TITLE){
-
+                //处理类(包括函数)
+                deal_class(pos);
         }
     }
 }
+void print(){
+    //程序开头有注释,先行输出
+    int m = res.size();
+    //输出每个类中的各个属性
+    for(int i = 0; i < m; i++){
+
+    }
+}
+
 int main(){
     freopen("in.txt", "r", stdin);
+    //初始化
+    init();
     //将less读入到buf中
     read();
     //将每个单词读入到words中
     get_words();
-
+    //转换
     turn();
+    //输出
+    print();
 
 }
