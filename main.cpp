@@ -1,4 +1,7 @@
-#include <bits/stdc++.h>
+#include <cstdio>
+#include <iostream>
+#include <string>
+#include <vector>
 #define INF 0x3f3f3f3f
 #define LL long long
 #define eps 1e-8
@@ -27,44 +30,44 @@ using namespace std;
 
 
 struct Comment{
-    vector<string> value;
-    Comment(){
-        this->value.clear();
-    }
+	vector<string> value;
+	Comment(){
+		this->value.clear();
+	}
 };
 struct Var{
-    bool is_stable;
-    int type;
-    vector<Var*> son;
-    int _int;
-    float _float;
-    string _color;
-    string _string;
-    int comment_var;
-    Var(){};
+	bool is_stable;
+	int type;
+	vector<Var*> son;
+	int _int;
+	float _float;
+	string _color;
+	string _string;
+	int comment_var;
+	Var(){};
 };
 
 struct Property{
-    string name;
-    int comment_name;
-    Var *value;
-    Property(string name = "", int comment_name = -1, Var *value = NULL):name(name), comment_name(comment_name), value(value){};
+	string name;
+	int comment_name;
+	Var *value;
+	Property(string name = "", int comment_name = -1, Var *value = NULL) :name(name), comment_name(comment_name), value(value){};
 };
 
 struct Class{
-    string title;
-    int comment_title;
-    vector<Property> value;
-    int comment_class;
+	string title;
+	int comment_title;
+	vector<Property> value;
+	int comment_class;
 };
 
 struct Word{
-    int type;
-    string value;
+	int type;
+	string value;
 };
 //单词表中的位置
 struct Pos{
-    int pos_begin, pos_end;
+	int pos_begin, pos_end;
 };
 //存函数在单词表中的位置
 vector<Pos> pos_of_func;
@@ -80,62 +83,66 @@ vector<Comment> comments;
 vector<Class> res;
 
 void init(){
-//初始化变量
+	//初始化变量
 }
 void read(){
-//将文件中所有字符读到buf中
-
+	//将文件中所有字符读到buf中
+	char ch;
+	while (~scanf("%c", &ch)){
+		buf.push_back(ch);
+	}
 }
 
 void get_words(){
-//将单词读入到words中
+	//将单词读入到words中
 
 };
+
 void deal_var(int& pos){
 
 }
 
 void deal_class(int& pos){
-    //带括号处理变量,遇到变量还是可以调用deal_var();
+	//带括号处理变量,遇到变量还是可以调用deal_var();
 
 }
 
 void turn(){
-//将单词处理成变量储存
-    int pos = 0, len = words.size();
-    while(pos < len){
-        int type = words[pos++].type;
-        //碰到变量
-        if(type == WORD_VAR){
-                deal_var(pos);
-        } else if(type == WORD_TITLE){
-                //处理类(包括函数)
-                deal_class(pos);
-        }
-    }
+	//将单词处理成变量储存
+	int pos = 0, len = words.size();
+	while (pos < len){
+		int type = words[pos++].type;
+		//碰到变量
+		if (type == WORD_VAR){
+			deal_var(pos);
+		}
+		else if (type == WORD_TITLE){
+			//处理类(包括函数)
+			deal_class(pos);
+		}
+	}
 }
 void print(){
-    //程序开头有注释,先行输出
-    int m = res.size();
-    //输出每个类中的各个属性
-    for(int i = 0; i < m; i++){
-        Class& c = res[i];
-        cout << c.title
-        for(int j = 0; i < c.)
-    }
+	//程序开头有注释,先行输出
+	int m = res.size();
+	//输出每个类中的各个属性
+	for (int i = 0; i < m; i++){
+		Class& c = res[i];
+		cout << c.title;
+	}
 }
 
 int main(){
-    freopen("in.txt", "r", stdin);
-    //初始化
-    init();
-    //将less读入到buf中
-    read();
-    //将每个单词读入到words中
-    get_words();
-    //转换
-    turn();
-    //输出
-    print();
+	freopen("in.txt", "r", stdin);
+	//初始化
+	init();
+	//将less读入到buf中
+	read();
+	//将每个单词读入到words中
+	get_words();
+	//转换
+	turn();
+	//输出
+	print();
 
 }
