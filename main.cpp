@@ -93,9 +93,26 @@ void read(){
 	}
 }
 
+void scaner(int& pos, int len){
+	string token;
+	char ch = buf[pos++];
+	while (ch == ' ' || ch == '\t' || ch == '\n'){
+		ch = buf[pos++];
+		if (pos >= len) return;
+	}
+	while (ch != 0){
+		if (ch == '@'){
+
+		}
+	}
+}
+
 void get_words(){
 	//将单词读入到words中
-
+	int pos = 0, len = buf.size();
+	while (pos < len){
+		scaner(pos, len);
+	}
 };
 
 void deal_var(int& pos){
