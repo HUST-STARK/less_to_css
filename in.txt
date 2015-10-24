@@ -1,0 +1,14 @@
+.filter(@percent: 80, @float:0.8){
+filter:alpha(opacity=@percent);
+-moz-opacity:@float;
+-khtml-opacity: @float;
+opacity: @float;
+}
+h3{
+color:red;
+.filter;
+}
+h4{
+color:blue;
+.filter(50,0.5);
+}

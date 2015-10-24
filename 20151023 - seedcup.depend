@@ -1,0 +1,8 @@
+# depslib dependency file v1.0
+1445692784 source:e:\data\source\acm\20151023 - seedcup\main.cpp
+	<cstdio>
+	<iostream>
+	<string>
+	<vector>
+	<map>
+

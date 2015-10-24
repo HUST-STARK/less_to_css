@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 #define INF 0x3f3f3f3f
 #define LL long long
 #define eps 1e-8
@@ -16,7 +17,7 @@
 #define WORD_VAR    0   //变量
 #define WORD_COLON  1   //冒号
 #define WORD_NUM    2   //数字
-#define WORD_TITLE  3   //函数名或类名或属性名或颜色常量
+#define WORD_NAME  3   //函数名或类名或属性名或颜色常量
 #define WORD_OB     4   //左大括号 opening brace
 #define WORD_CB     5   //右大括号 closing brace
 #define WORD_STR    6   //字符串(待处理,中间可能还有变量)
@@ -39,6 +40,7 @@ struct Comment{
 		this->value.clear();
 	}
 };
+
 struct Var{
 	bool is_stable;
 	int type;
@@ -115,6 +117,14 @@ void scaner(int& pos, int len, int last_type){
 		if (!flag){
 			token.clear();
 		}
+		if(isnumber(ch)){
+            while(isnumber(ch) || ch == '.'){
+                token.push_back(ch);
+                ch = buf[pos++];
+            }
+            type = WORD_NUM;
+            break;
+		}
 		if (ch == '@'){
 			token.push_back(ch);
 			ch = buf[pos++];
@@ -134,7 +144,16 @@ void scaner(int& pos, int len, int last_type){
 				ch = buf[pos++];
 			}
 			pos--;
-			type = WORD_TITLE;
+			type = WORD_NAME;
+			break;
+		}
+		if (((ch == '_' || ch == '-') && isalnum(buf[pos])) || isalnum(ch)){
+			while (ch == '-' || ch == '_' || isalnum(ch)){
+				token.push_back(ch);
+				ch = buf[pos++];
+			}
+			pos--;
+			type = WORD_NAME;
 			break;
 		}
 		if (ch == '/'){
@@ -155,6 +174,16 @@ void scaner(int& pos, int len, int last_type){
 				return;
 			}
 		}
+		if (ch == '"'){
+			token.push_back(ch);
+			ch = buf[pos++];
+			while (ch != '"'){
+				token.push_back(ch);
+				ch = buf[pos++];
+			}
+			type = WORD_STR;
+			break;
+		}
 		if (ch == '+' || ch == '-'){
 			token.push_back(ch);
 			if (last_type != WORD_NUM && last_type != WORD_VAR && isnumber(buf[pos])){
@@ -164,6 +193,9 @@ void scaner(int& pos, int len, int last_type){
 			break;
 		}
 		switch (ch){
+        case '=':
+            type = WORD_EQU;
+            break;
 		case '{':
 			type = WORD_OB;
 			break;
@@ -224,7 +256,7 @@ void turn(){
 		if (type == WORD_VAR){
 			deal_var(pos);
 		}
-		else if (type == WORD_TITLE){
+		else if (type == WORD_NAME){
 			//处理类(包括函数)
 			deal_class(pos);
 		}
