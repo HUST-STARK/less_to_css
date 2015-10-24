@@ -122,6 +122,7 @@ void scaner(int& pos, int len, int last_type){
                 token.push_back(ch);
                 ch = buf[pos++];
             }
+            pos--;
             type = WORD_NUM;
             break;
 		}
@@ -225,7 +226,7 @@ void scaner(int& pos, int len, int last_type){
 		break;
 	}
 	words.push_back(Word(type, token));
-	//cout << type << "     " << token << endl;
+	cout << type << "     " << token << endl;
 }
 
 void get_words(){
