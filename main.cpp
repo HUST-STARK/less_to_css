@@ -119,7 +119,9 @@ void print(){
     int m = res.size();
     //输出每个类中的各个属性
     for(int i = 0; i < m; i++){
-
+        Class& c = res[i];
+        cout << c.title
+        for(int j = 0; i < c.)
     }
 }
 
