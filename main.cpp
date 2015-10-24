@@ -25,7 +25,11 @@
 #define WORD_OP     9   //左小括号
 #define WORD_CP     10  //右小括号
 #define WORD_SEM    11  //分号
-
+#define WORD_PLUS	12	//加号			+
+#define WORD_MUL	13	//乘号			*
+#define WORD_MIN	14	//减号			-
+#define WORD_DIV	15	//除号or斜杠		/
+#define WORD_CMT	16	//块注释
 using namespace std;
 
 
@@ -64,6 +68,7 @@ struct Class{
 struct Word{
 	int type;
 	string value;
+	Word(int type = 0, string value = "") :type(type), value(value){};
 };
 //单词表中的位置
 struct Pos{
@@ -93,25 +98,111 @@ void read(){
 	}
 }
 
-void scaner(int& pos, int len){
+bool isnumber(char ch){
+	return ch >= '0' && ch <= '9';
+}
+
+void scaner(int& pos, int len, int last_type){
 	string token;
 	char ch = buf[pos++];
 	while (ch == ' ' || ch == '\t' || ch == '\n'){
 		ch = buf[pos++];
 		if (pos >= len) return;
 	}
+	bool flag = false;
+	int type;
 	while (ch != 0){
-		if (ch == '@'){
-
+		if (!flag){
+			token.clear();
 		}
+		if (ch == '@'){
+			token.push_back(ch);
+			ch = buf[pos++];
+			while (isalnum(ch) || ch == '-' || ch == '_'){
+				token.push_back(ch);
+				ch = buf[pos++];
+			}
+			pos--;
+			type = WORD_VAR;
+			break;
+		}
+		if (ch == '#' || ch == '.'){
+			token.push_back(ch);
+			ch = buf[pos++];
+			while (isalnum(ch)){
+				token.push_back(ch);
+				ch = buf[pos++];
+			}
+			pos--;
+			type = WORD_TITLE;
+			break;
+		}
+		if (ch == '/'){
+			if (buf[pos] == '*'){
+				token.push_back(ch);
+				token.push_back(buf[pos++]);
+				ch = buf[pos++];
+				while (buf[pos - 1] != '*' || buf[pos] != '/'){
+					token.push_back(ch);
+					ch = buf[pos++];
+				}
+				type = WORD_CMT;
+				break;
+			}
+			else if (buf[pos] == '/'){
+				while (buf[pos++] != '\n'){
+				}
+				return;
+			}
+		}
+		if (ch == '+' || ch == '-'){
+			token.push_back(ch);
+			if (last_type != WORD_NUM && last_type != WORD_VAR && isnumber(buf[pos])){
+				flag = true;
+				continue;
+			}
+			break;
+		}
+		switch (ch){
+		case '{':
+			type = WORD_OB;
+			break;
+		case '}':
+			type = WORD_CB;
+			break;
+		case '(':
+			type = WORD_OP;
+			break;
+		case ')':
+			type = WORD_CP;
+			break;
+		case ':':
+			type = WORD_COLON;
+			break;
+		case ';':
+			type = WORD_SEM;
+			break;
+		case '*':
+			type = WORD_MUL;
+			break;
+		case '/':
+			type = WORD_DIV;
+			break;
+		}
+		token.push_back(ch);
+		break;
 	}
+	words.push_back(Word(type, token));
+	cout << type << "     " << token << endl;
 }
 
 void get_words(){
 	//将单词读入到words中
 	int pos = 0, len = buf.size();
+	int last_type = INF;
 	while (pos < len){
-		scaner(pos, len);
+		scaner(pos, len, last_type);
+		last_type = words[words.size() - 1].type;
 	}
 };
 
@@ -158,8 +249,8 @@ int main(){
 	//将每个单词读入到words中
 	get_words();
 	//转换
-	turn();
+	//turn();
 	//输出
-	print();
+	//print();
 
 }
