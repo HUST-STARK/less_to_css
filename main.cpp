@@ -225,7 +225,7 @@ void scaner(int& pos, int len, int last_type){
 		break;
 	}
 	words.push_back(Word(type, token));
-	cout << type << "     " << token << endl;
+	//cout << type << "     " << token << endl;
 }
 
 void get_words(){
