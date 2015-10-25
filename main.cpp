@@ -78,8 +78,50 @@ struct Var{
 		this->type = type;
 		if (type == FLOAT || type == COLOR || type == PIXEL){
 			//小数待处理
-			stringstream ss(_string);
-			ss >> this->_double;
+			if (type == PIXEL){
+				stringstream ss(_string);
+				ss >> this->_double;
+			}
+			if (type == COLOR){
+				//颜色字符串转数值
+				int x = 0;
+				for (int i = 0; i < 6; i++){
+					if (_string[i] >= 'A' && _string[i] <= 'F'){
+						x += (_string[i] - 'A' + 10) << (4 * (5 - i));
+					}
+					if (_string[i] >= 'a' && _string[i] <= 'z'){
+						x += (_string[i] - 'a' + 10) << (4 * (5 - i));
+					}
+					if (_string[i] >= '0' && _string[i] <= '9'){
+						x += (_string[i] - '0') << (4 * (5 - i));
+					}
+				}
+				this->_double = x;
+			}
+			if (type == FLOAT){
+			//数字字符串转数值
+				int i;
+				double x = 0;
+				for (i = 0; i < _string.size(); i++){
+					if (_string[i] == '.'){
+						break;
+					}
+					x = x * 10 + _string[i] - '0';
+				}
+				i++;
+				if (i < _string.size() - 1){
+					double y = 0;
+					for (; i < _string.size(); i++){
+						y = y * 10 + (_string[i] - '0');
+					}
+					while (y >= 1){
+						y /= 10;
+					}
+					x += y;
+				}
+				this->_double = x;
+
+			}
 		}
 		else{
 			this->_string = _string;
@@ -137,6 +179,7 @@ vector<Comment> comments;
 vector<Class*> res;
 
 int cnt_scope;
+
 void init(){
 	//初始化变量
 	cnt_scope = 0;
@@ -147,6 +190,7 @@ void init(){
 	res.clear();
 	words.clear();
 }
+
 void read(){
 	//将文件中所有字符读到buf中
 	char ch;
@@ -200,6 +244,27 @@ void scaner(int& pos, int len, int last_type, string name){
 			break;
 		}
 		if (ch == '#' || ch == '.'){
+			if (ch == '#'){
+				int o;
+				for (int i = pos; i < len; i++){
+					if (buf[i] == ';'){
+						o = WORD_COLOR;
+						break;
+					}
+					if (buf[i] == '{'){
+						o = WORD_OB;
+						break;
+					}
+				}
+				if (o == WORD_COLOR){
+					for (int i = pos; i < pos + 6; i++){
+						token.push_back(buf[i]);
+					}
+					pos += 6;
+					type = WORD_COLOR;
+					break;
+				}
+			}
 			token.push_back(ch);
 			ch = buf[pos++];
 			while (isalnum(ch)){
@@ -392,7 +457,7 @@ Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 			v->son.push_back(new Var("*", OPERATOR));
 			break;
 		case WORD_DIV:
-			v->son.push_back(new Var("*", OPERATOR));
+			v->son.push_back(new Var("/", OPERATOR));
 			break;
 		case WORD_OP:
 			v->son.push_back(new Var("(", OPERATOR));
@@ -482,6 +547,7 @@ Class* deal_class(int& pos, int scope, bool flag){
 			else{
 				//嵌套子类
 				cnt_scope++;
+				pos--;
 				Class* q = deal_class(pos, cnt_scope, true);
 				merge_class(p, q);
 				q->title = p->title + " " + q->title;
