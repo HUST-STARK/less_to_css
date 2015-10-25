@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <sstream>
 #define INF 0x3f3f3f3f
 #define LL long long
 #define eps 1e-8
@@ -33,11 +34,22 @@
 #define WORD_CMT	16	//块注释
 using namespace std;
 
+//输入数据缓冲
+vector<char> buf;
+struct Word{
+	int type;
+	string value;
+	Word(int type = 0, string value = "") :type(type), value(value){};
+};
+//单词表
+vector<Word> words;
 
 struct Comment{
 	vector<string> value;
-	Comment(){
-		this->value.clear();
+	Comment(int &pos){
+		while (words[pos].type == WORD_CMT){
+			this->value.push_back(words[pos++].value);
+		}
 	}
 };
 
@@ -45,12 +57,26 @@ struct Var{
 	bool is_stable;
 	int type;
 	vector<Var*> son;
-	int _int;
-	float _float;
+	double _double;
 	string _color;
 	string _string;
 	int comment_var;
-	Var(){};
+	Var(){
+		comment_var = -1;
+	};
+	Var(string _string, int type){
+		this->is_stable = true;
+		comment_var = -1;
+		this->type = type;
+		if (type == WORD_NUM){
+			//小数待处理
+			stringstream ss(_string);
+			ss >> this->_double;
+		}
+		else{
+			this->_string = _string;
+		}
+	}
 };
 
 struct Property{
@@ -65,13 +91,23 @@ struct Class{
 	int comment_title;
 	vector<Property> value;
 	int comment_class;
+	Class(){};
+	Class(string title = "", int comment_title = -1, int comment_class = -1):title(title), comment_title(comment_title), comment_class(comment_class){
+		this->value.clear();
+	};
 };
 
-struct Word{
-	int type;
-	string value;
-	Word(int type = 0, string value = "") :type(type), value(value){};
+struct mVar{
+	Var* value;
+	string name;
+	int scope;
+	mVar(Var* v = NULL, string name = "", int scope = -1){
+		this->value = v;
+		this->name = name;
+		this->scope = scope;
+	}
 };
+vector<mVar> var;
 //单词表中的位置
 struct Pos{
 	int pos_begin, pos_end;
@@ -80,17 +116,23 @@ struct Pos{
 vector<Pos> pos_of_func;
 
 map<string, int> map_func;
-//输入数据缓冲
-vector<char> buf;
-//单词表
-vector<Word> words;
+
+
 //注释表
 vector<Comment> comments;
 //css类表
-vector<Class> res;
+vector<Class*> res;
 
+int cnt_scope;
 void init(){
 	//初始化变量
+	cnt_scope = 0;
+	var.clear();
+	comments.clear();
+	map_func.clear();
+	pos_of_func.clear();
+	res.clear();
+	words.clear();
 }
 void read(){
 	//将文件中所有字符读到buf中
@@ -117,14 +159,14 @@ void scaner(int& pos, int len, int last_type){
 		if (!flag){
 			token.clear();
 		}
-		if(isnumber(ch)){
-            while(isnumber(ch) || ch == '.'){
-                token.push_back(ch);
-                ch = buf[pos++];
-            }
-            pos--;
-            type = WORD_NUM;
-            break;
+		if (isnumber(ch)){
+			while (isnumber(ch) || ch == '.'){
+				token.push_back(ch);
+				ch = buf[pos++];
+			}
+			pos--;
+			type = WORD_NUM;
+			break;
 		}
 		if (ch == '@'){
 			token.push_back(ch);
@@ -194,9 +236,9 @@ void scaner(int& pos, int len, int last_type){
 			break;
 		}
 		switch (ch){
-        case '=':
-            type = WORD_EQU;
-            break;
+		case '=':
+			type = WORD_EQU;
+			break;
 		case '{':
 			type = WORD_OB;
 			break;
@@ -239,38 +281,184 @@ void get_words(){
 	}
 };
 
-void deal_var(int& pos){
+bool check_var(string name, int scope){
+	//在变量表中遍历是否有作用域下的当前变量
+	int k = -1;
+	for (int i = 0; i < var.size(); i++){
+		if (var[i].name != name) continue;
+		if (var[i].scope == scope){
+			k = i;
+			break;
+		}
+		if (var[i].scope == 0){
+			k = i;
+		}
+	}
+	return k;
+}
+void merge_class(Class* p, Class *q){
+	//合并父类p和子类q
+	if (q->comment_title != -1){
+		p->value[p->value.size() - 1].comment_name = p->comment_title;
+	}
+	for (int i = 0; i < q->value.size(); i++){
+		p->value.push_back(q->value[i]);
+	}
+	if (q->value[q->value.size() - 1].comment_name != -1){
+		p->value[p->value.size() - 1].comment_name = q->value[q->value.size() - 1].comment_name;
+	}
 
 }
 
-void deal_class(int& pos){
-	//带括号处理变量,遇到变量还是可以调用deal_var();
+Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
+	//is_left = true 时表示给变量赋值,否则是给属性赋值.
+	Var* v;
+	if (is_left){
+		string name = words[pos].value;
+		int k = check_var(name, scope);
+		if (k == -1){
+			v = new Var();
+			var.push_back(mVar(v, name, scope));
+		}
+		pos++;
+	}
+	//处理赋值号右边的部分,到 ; 为止
+	int type = words[pos].type;
+	while (type != sem_common || (sem_common == WORD_COMMA && type == WORD_CP)){
+		switch (type){
+		case WORD_NUM:
+			v->son.push_back(new Var(words[pos].value, WORD_NUM));
+		case  WORD_PLUS:
+			v->son.push_back(new Var("+", WORD_PLUS));
+			break;
+		case WORD_MIN:
+			v->son.push_back(new Var("-", WORD_MIN));
+			break;
+		case  WORD_MUL:
+			v->son.push_back(new Var("*", WORD_MUL));
+			break;
+		case WORD_DIV:
+			v->son.push_back(new Var("*", WORD_DIV));
+			break;
+		case WORD_STR:
+			string s = words[pos].value;
+			string t;
+			t.clear();
+			for (int i = 0; i < s.size(); i++){
+				if (i >= s.size() - 1 || s[i] != '@' || s[i + 1] == '{'){
+					t.push_back(s[i]);
+				}
+				else{
+					if (t.size() != 0){
+						v->son.push_back(new Var(t, WORD_STR));
+						t.clear();
+					}
+					i++;
+					while (s[i] != '}'){
+						t.push_back(s[i]);
+					}
+					int k = check_var(t, scope);
+					if (k == -1){
+						var.push_back(mVar(new Var(), t, scope));
+						k = var.size() - 1;
+					}
+					v->son.push_back(var[k].value);
+				}
+			}
+			break;
+		}
+		pos++;
+		type = words[pos].type;
+	}
+	pos++;
+	if (words[pos].type == WORD_CMT){
+		comments.push_back(Comment(pos));
+		v->comment_var = comments.size() - 1;
+	}
+	return v;
+}
 
+void deal_func(int &pos, int scope){
+	pos++;
+	while (words[pos].type != WORD_OB){
+		deal_var(pos, true, scope, WORD_COMMA);
+	}
+}
+
+Class* deal_class(int& pos, int scope){
+	//带括号处理变量,遇到变量还是可以调用deal_var();
+	Class *p = new Class(words[pos - 1].value);
+	res.push_back(p);
+
+	//添加左大括号后面的注释
+	pos++;
+	if(words[pos].type == WORD_OP){
+		deal_func(pos, scope);
+	}
+	if (words[pos].type == WORD_CMT){
+		comments.push_back(Comment(pos));
+		p->comment_class = comments.size() - 1;
+	}
+	while (words[pos].type != WORD_CB){
+		int type = words[pos++].type;
+		if (type == WORD_VAR){
+			deal_var(pos, true, scope, WORD_SEM);
+		}
+		else if (type == WORD_NAME && words[pos].type != WORD_COLON){
+			//遇到子类或者调用函数
+			cnt_scope++;
+			merge_class(p, deal_class(pos, cnt_scope));
+			if (words[pos].type == WORD_CMT){
+
+				//调用子类后面出现注释,合并子类后加到最后一个属性后面
+				comments.push_back(Comment(pos));
+				p->value[p->value.size() - 1].comment_name = comments.size();
+			}
+		}
+		else if (type == WORD_NAME && words[pos].type == WORD_COLON){
+			//遇到类中属性
+			pos++;
+			Property pp = Property(words[pos - 1].value, -1, deal_var(pos, false, scope, WORD_SEM));
+			p->value.push_back(pp);
+			if (words[pos].type == WORD_CMT){
+				//属性后出项注释
+				comments.push_back(Comment(pos));
+				pp.comment_name = comments.size();
+			}
+		}
+
+	}
 }
 
 void turn(){
 	//将单词处理成变量储存
 	int pos = 0, len = words.size();
+	int scope = 0;
+	while (words[pos].type == WORD_CMT){
+		cout << words[pos++].value << endl;
+	}
 	while (pos < len){
 		int type = words[pos++].type;
 		//碰到变量
 		if (type == WORD_VAR){
 			deal_var(pos);
 		}
-		else if (type == WORD_NAME){
-			//处理类(包括函数)
-			deal_class(pos);
+		else if (type == WORD_NAME && words[pos].type == WORD_OP){
+			//函数不储存
+			pos = pos_of_func[map_func[words[pos - 1].value]].pos_end + 1;
+			continue;
+		}
+		else if (type == WORD_NAME && words[pos].type == WORD_OB){
+			//处理类
+			cnt_scope++;
+			deal_class(pos, cnt_scope);
 		}
 	}
 }
+
 void print(){
 	//程序开头有注释,先行输出
 	int m = res.size();
-	//输出每个类中的各个属性
-	for (int i = 0; i < m; i++){
-		Class& c = res[i];
-		cout << c.title;
-	}
 }
 
 int main(){
@@ -282,7 +470,7 @@ int main(){
 	//将每个单词读入到words中
 	get_words();
 	//转换
-	//turn();
+	turn();
 	//输出
 	//print();
 
