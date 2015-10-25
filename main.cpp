@@ -435,6 +435,7 @@ Class* deal_class(int& pos, int scope, bool flag){
 	if(words[pos].type == WORD_OP){
 		deal_func(pos, scope);
 	}
+	pos++;
 	if (words[pos].type == WORD_CMT){
 		comments.push_back(Comment(pos));
 		p->comment_class = comments.size() - 1;
@@ -450,6 +451,10 @@ Class* deal_class(int& pos, int scope, bool flag){
 				//调用函数
 				int pos2 = pos_of_func[map_func[words[pos - 1].value]].pos_begin;
 				merge_class(p, deal_class(pos2, scope, false));
+				while (words[pos].type != WORD_SEM){
+					pos++;
+				}
+				pos++;
 			}
 			else{
 				//嵌套子类
@@ -503,7 +508,7 @@ void turn(){
 		else if (type == WORD_NAME && words[pos].type == WORD_OB){
 			//处理类
 			cnt_scope++;
-			deal_class(pos, cnt_scope, true);
+			deal_class(--pos, cnt_scope, true);
 		}
 	}
 }
@@ -525,6 +530,6 @@ int main(){
 	//转换
 	turn();
 	//输出
-	//print();
+	print();
 
 }
