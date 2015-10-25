@@ -354,6 +354,7 @@ Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 		v = new Var();
 	}
 	//处理赋值号右边的部分,到 ; 为止
+	pos++;
 	int type = words[pos].type;
 	while (type != sem_common || (sem_common == WORD_COMMA && type == WORD_CP)){
 		switch (type){
@@ -361,9 +362,10 @@ Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 			k = check_var(words[pos].value, scope);
 			if (k == -1){
 				var.push_back(mVar(new Var(), words[pos].value, scope));
+				k = var.size() - 1;
 			}
 			//v->son.push_back(new  Var());
-			v->son.push_back(var[var.size() - 1].value);
+			v->son.push_back(var[k].value);
 			break;
 		case WORD_NUM:
 			v->son.push_back(new Var(words[pos].value, WORD_NUM));
@@ -475,8 +477,7 @@ Class* deal_class(int& pos, int scope, bool flag){
 		}
 		else if (type == WORD_NAME && words[pos].type == WORD_COLON){
 			//遇到类中属性
-			pos++;
-			string name = words[pos - 2].value;
+			string name = words[pos - 1].value;
 			Property pp = Property(name, -1, deal_var(pos, false, scope, WORD_SEM));
 			p->value.push_back(pp);
 			if (words[pos].type == WORD_CMT){
@@ -486,6 +487,7 @@ Class* deal_class(int& pos, int scope, bool flag){
 			}
 		}
 	}
+	pos++;
 	return p;
 }
 
