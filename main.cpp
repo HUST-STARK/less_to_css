@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <stack>
 #include <sstream>
 #define INF 0x3f3f3f3f
 #define LL long long
@@ -28,11 +29,11 @@
 #define WORD_OP     9   //左小括号
 #define WORD_CP     10  //右小括号
 #define WORD_SEM    11  //分号
-#define WORD_PLUS	12	//加号			+
-#define WORD_MUL	13	//乘号			*
-#define WORD_MIN	14	//减号			-
-#define WORD_DIV	15	//除号or斜杠		/
-#define WORD_CMT	16	//块注释
+#define WORD_PLUS   12  //加号            +
+#define WORD_MUL    13  //乘号            *
+#define WORD_MIN    14  //减号            -
+#define WORD_DIV    15  //除号or斜杠        /
+#define WORD_CMT    16  //块注释
 using namespace std;
 
 //输入数据缓冲
@@ -94,7 +95,7 @@ struct Class{
 	int comment_title;
 	vector<Property> value;
 	int comment_class;
-	Class(string title = "", int comment_title = -1, int comment_class = -1):title(title), comment_title(comment_title), comment_class(comment_class){
+	Class(string title = "", int comment_title = -1, int comment_class = -1) :title(title), comment_title(comment_title), comment_class(comment_class){
 		this->value.clear();
 	};
 };
@@ -298,7 +299,7 @@ void get_words(){
 	while (pos < len){
 		scaner(pos, len, last_type, name);
 		last_type = words[words.size() - 1].type;
-		if(last_type == WORD_NAME) name = words[words.size() - 1].value;
+		if (last_type == WORD_NAME) name = words[words.size() - 1].value;
 	}
 };
 
@@ -428,13 +429,14 @@ void deal_func(int &pos, int scope){
 Class* deal_class(int& pos, int scope, bool flag){
 	//带括号处理变量,遇到变量还是可以调用deal_var();
 	Class *p = new Class(words[pos - 1].value);
-	if(flag)res.push_back(p);
+	if (flag)res.push_back(p);
 	p->title = words[pos].value;
 	//添加左大括号后面的注释
 	pos++;
-	if(words[pos].type == WORD_OP){
+	if (words[pos].type == WORD_OP){
 		deal_func(pos, scope);
 	}
+	pos++;
 	if (words[pos].type == WORD_CMT){
 		comments.push_back(Comment(pos));
 		p->comment_class = comments.size() - 1;
@@ -450,6 +452,10 @@ Class* deal_class(int& pos, int scope, bool flag){
 				//调用函数
 				int pos2 = pos_of_func[map_func[words[pos - 1].value]].pos_begin;
 				merge_class(p, deal_class(pos2, scope, false));
+				while (words[pos].type != WORD_SEM){
+					pos++;
+				}
+				pos++;
 			}
 			else{
 				//嵌套子类
@@ -503,19 +509,193 @@ void turn(){
 		else if (type == WORD_NAME && words[pos].type == WORD_OB){
 			//处理类
 			cnt_scope++;
-			deal_class(pos, cnt_scope, true);
+			deal_class(--pos, cnt_scope, true);
 		}
 	}
 }
 
+/*处理数值的计算*/
+double compute_double(Var& v) {
+	stack<double> value;
+	stack<int> op;
+	bool flag = false;
+
+	for (vector<Var*>::iterator it = v.son.begin(); it != v.son.end(); it++) {
+		if ((*it)->is_stable == true) {
+			if ((*it)->type != WORD_OP && (*it)->type != WORD_CP
+				&& (*it)->type != WORD_MUL && (*it)->type != WORD_DIV
+				&& (*it)->type != WORD_PLUS && (*it)->type != WORD_MIN) {
+				value.push((*it)->_double);
+				flag = true;
+			}
+			else {
+				op.push((*it)->type);
+			}
+		}
+		else {
+			value.push(compute_double(*(*it)));
+		}
+	}
+
+	/*计算优先级较高的*/
+compute_prior:
+	if (flag && !op.empty()
+		&& op.top() != WORD_MUL
+		&& op.top() != WORD_DIV) {
+		double y = value.top(); value.pop();
+		double x = value.top(); value.pop();
+
+		if (op.top() == WORD_MUL) {
+			op.pop();
+			value.push(x * y);
+		}
+		else {
+			op.pop();
+			value.push(x / y);
+		}
+	}
+	else if (!op.empty() && op.top() == WORD_CP) {
+		op.pop();
+
+		while (op.top() != WORD_OP) {
+			double y = value.top(); value.pop();
+			double x = value.top(); value.pop();
+			if (op.top() == WORD_PLUS) {
+				op.pop();
+				value.push(x + y);
+			}
+			else {
+				op.pop();
+				value.push(x - y);
+			}
+		}
+		flag = true;
+		goto compute_prior;
+	}
+
+	while (!op.empty()) {
+		double y = value.top(); value.pop();
+		double x = value.top(); value.pop();
+		int o = op.top(); op.pop();
+
+		if (o == WORD_MUL) {
+			value.push(x * y);
+		}
+		else if (o == WORD_DIV) {
+			value.push(x / y);
+		}
+		else if (o == WORD_PLUS) {
+			value.push(x + y);
+		}
+		else if (o == WORD_MIN) {
+			value.push(x - y);
+		}
+	}
+	return value.top();
+}
+
+/*解析网址*/
+string compute_string(Var& v) {
+	string ans = "";
+
+	if (v.is_stable == true)
+		return v._string;
+	else {
+		for (vector<Var*>::iterator it = v.son.begin(); it != v.son.end(); it++) {
+			if ((*it)->is_stable == true)
+				ans += (*it)->_string;
+			else
+				ans += compute_string(*(*it));
+		}
+	}
+
+	return ans;
+}
+
 void print(){
-	//程序开头有注释,先行输出
 	int m = res.size();
+
+	/*输出每个类中的各个属性*/
+	for (int j = 0; j < m; j++){
+		Class& c = *res[j];
+		/*类名*/
+		cout << c.title;
+		cout << '{' << endl;
+
+		/*跟在左大括号后面第一个属性变量之前的注释*/
+		if (c.comment_title != -1) {
+			for (int i = 0; i < comments[c.comment_title].value.size(); i++) {
+				cout << comments[c.comment_title].value[i] << endl;
+			}
+		}
+
+		/*输出类中的所有CSS属性*/
+		for (int i = 0; i < c.value.size(); i++) {
+			Property& p = c.value[i];
+			cout << p.name << ':';
+
+			/*属性名后面的注释*/
+			if (p.comment_name != -1) {
+				for (int k = 0; k < comments[p.comment_name].value.size(); k++) {
+					cout << comments[p.comment_name].value[k];
+				}
+			}
+
+			/*输出属性值*/
+			Var* v = p.value;
+			if (v->is_stable == true){
+				switch (v->type){
+					//case INT: cout << v->_int << ';' << endl;
+				case FLOAT: cout << v->_double << ';' << endl;
+				case COLOR: cout << v->_color << ';' << endl;
+				case STRING: cout << v->_string << ';' << endl;
+				}
+			}
+			/*变量先计算再输出*/
+			else{
+				if (v->type == INT)
+					cout << (int)compute_double(*v) << ';' << endl;
+				if (v->type == FLOAT)
+					cout << compute_double(*v) << ';' << endl;
+				if (v->type == STRING)
+					cout << compute_string(*v) << ';' << endl;
+				if (v->type == COLOR) {
+					int tmp = compute_double(*v);
+					int pos = 6;
+					char tmp_16[7] = { '0' };
+					tmp_16[0] = '#';
+
+					while (tmp && pos >= 1) {
+						char bit = tmp % 16;
+						if (bit < 10) tmp_16[pos] = bit + '0';
+						else tmp_16[pos] = bit - 10 + 'a';
+
+						tmp /= 16;
+						pos--;
+					}
+
+					cout << tmp_16 << ';' << endl;
+				}
+
+			}
+
+			/*属性变量后的注释*/
+			/*Var初始化：comments_var=-1*/
+			if (v->comment_var != -1) {
+				for (int k = 0; k < comments[v->comment_var].value.size(); k++) {
+					cout << comments[v->comment_var].value[k] << endl;
+				}
+			}
+
+		}
+
+		cout << '}' << endl;
+	}
 }
 
 int main(){
 	freopen("in.txt", "r", stdin);
-	freopen("out.txt", "w", stdout);
+	//freopen("out.txt", "w", stdout);
 	//初始化
 	init();
 	//将less读入到buf中
@@ -525,6 +705,6 @@ int main(){
 	//转换
 	turn();
 	//输出
-	//print();
+	print();
 
 }
