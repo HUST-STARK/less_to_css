@@ -67,6 +67,7 @@ struct Var{
 		son.clear();
 		is_stable = false;
 		comment_var = -1;
+		type = -1;
 	};
 	Var(string _string, int type){
 		this->is_stable = true;
@@ -244,6 +245,7 @@ void scaner(int& pos, int len, int last_type, string name){
 				flag = true;
 				continue;
 			}
+			type = ch == '+' ? WORD_PLUS : WORD_MIN;
 			break;
 		}
 		switch (ch){
