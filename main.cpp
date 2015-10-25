@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <cstdio>
 #include <iostream>
 #include <string>
@@ -62,6 +63,8 @@ struct Var{
 	string _string;
 	int comment_var;
 	Var(){
+		son.clear();
+		is_stable = false;
 		comment_var = -1;
 	};
 	Var(string _string, int type){
@@ -91,7 +94,6 @@ struct Class{
 	int comment_title;
 	vector<Property> value;
 	int comment_class;
-	Class(){};
 	Class(string title = "", int comment_title = -1, int comment_class = -1):title(title), comment_title(comment_title), comment_class(comment_class){
 		this->value.clear();
 	};
@@ -110,10 +112,16 @@ struct mVar{
 vector<mVar> var;
 //单词表中的位置
 struct Pos{
+	string name;
 	int pos_begin, pos_end;
+	Pos(string name = "", int a = 0, int b = 0){
+		this->name = name;
+		this->pos_begin = a;
+		this->pos_end = b;
+	}
 };
 //存函数在单词表中的位置
-vector<Pos> pos_of_func;
+vector<Pos> pos_of_func, func_temp;
 
 map<string, int> map_func;
 
@@ -146,15 +154,17 @@ bool isnumber(char ch){
 	return ch >= '0' && ch <= '9';
 }
 
-void scaner(int& pos, int len, int last_type){
+void scaner(int& pos, int len, int last_type, string name){
 	string token;
 	char ch = buf[pos++];
 	while (ch == ' ' || ch == '\t' || ch == '\n'){
-		ch = buf[pos++];
 		if (pos >= len) return;
+		ch = buf[pos++];
+
 	}
 	bool flag = false;
 	int type;
+	Pos pp;
 	while (ch != 0){
 		if (!flag){
 			token.clear();
@@ -240,9 +250,15 @@ void scaner(int& pos, int len, int last_type){
 			type = WORD_EQU;
 			break;
 		case '{':
+			func_temp.push_back(Pos(name, words.size() - 1, -1));
 			type = WORD_OB;
 			break;
 		case '}':
+			pp = func_temp[func_temp.size() - 1];
+			pp.pos_end = words.size();
+			pos_of_func.push_back(pp);
+			map_func[pp.name] = pos_of_func.size() - 1;
+			func_temp.erase(func_temp.end() - 1);
 			type = WORD_CB;
 			break;
 		case '(':
@@ -263,6 +279,9 @@ void scaner(int& pos, int len, int last_type){
 		case '/':
 			type = WORD_DIV;
 			break;
+		case ',':
+			type = WORD_COMMA;
+			break;
 		}
 		token.push_back(ch);
 		break;
@@ -275,13 +294,15 @@ void get_words(){
 	//将单词读入到words中
 	int pos = 0, len = buf.size();
 	int last_type = INF;
+	string name;
 	while (pos < len){
-		scaner(pos, len, last_type);
+		scaner(pos, len, last_type, name);
 		last_type = words[words.size() - 1].type;
+		if(last_type == WORD_NAME) name = words[words.size() - 1].value;
 	}
 };
 
-bool check_var(string name, int scope){
+int check_var(string name, int scope){
 	//在变量表中遍历是否有作用域下的当前变量
 	int k = -1;
 	for (int i = 0; i < var.size(); i++){
@@ -313,21 +334,37 @@ void merge_class(Class* p, Class *q){
 Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 	//is_left = true 时表示给变量赋值,否则是给属性赋值.
 	Var* v;
+	int k;
 	if (is_left){
 		string name = words[pos].value;
-		int k = check_var(name, scope);
+		k = check_var(name, scope);
 		if (k == -1){
 			v = new Var();
 			var.push_back(mVar(v, name, scope));
 		}
+		else{
+			v = var[k].value;
+		}
 		pos++;
+	}
+	else{
+		v = new Var();
 	}
 	//处理赋值号右边的部分,到 ; 为止
 	int type = words[pos].type;
 	while (type != sem_common || (sem_common == WORD_COMMA && type == WORD_CP)){
 		switch (type){
+		case WORD_VAR:
+			k = check_var(words[pos].value, scope);
+			if (k == -1){
+				var.push_back(mVar(new Var(), words[pos].value, scope));
+			}
+			//v->son.push_back(new  Var());
+			v->son.push_back(var[var.size() - 1].value);
+			break;
 		case WORD_NUM:
 			v->son.push_back(new Var(words[pos].value, WORD_NUM));
+			break;
 		case  WORD_PLUS:
 			v->son.push_back(new Var("+", WORD_PLUS));
 			break;
@@ -357,7 +394,7 @@ Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 					while (s[i] != '}'){
 						t.push_back(s[i]);
 					}
-					int k = check_var(t, scope);
+					k = check_var(t, scope);
 					if (k == -1){
 						var.push_back(mVar(new Var(), t, scope));
 						k = var.size() - 1;
@@ -380,16 +417,19 @@ Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 
 void deal_func(int &pos, int scope){
 	pos++;
+	if (words[pos].type == WORD_CP){
+		return;
+	}
 	while (words[pos].type != WORD_OB){
 		deal_var(pos, true, scope, WORD_COMMA);
 	}
 }
 
-Class* deal_class(int& pos, int scope){
+Class* deal_class(int& pos, int scope, bool flag){
 	//带括号处理变量,遇到变量还是可以调用deal_var();
 	Class *p = new Class(words[pos - 1].value);
-	res.push_back(p);
-
+	if(flag)res.push_back(p);
+	p->title = words[pos].value;
 	//添加左大括号后面的注释
 	pos++;
 	if(words[pos].type == WORD_OP){
@@ -406,8 +446,18 @@ Class* deal_class(int& pos, int scope){
 		}
 		else if (type == WORD_NAME && words[pos].type != WORD_COLON){
 			//遇到子类或者调用函数
-			cnt_scope++;
-			merge_class(p, deal_class(pos, cnt_scope));
+			if (words[pos].type == WORD_SEM || words[pos].type == WORD_OP){
+				//调用函数
+				int pos2 = pos_of_func[map_func[words[pos - 1].value]].pos_begin;
+				merge_class(p, deal_class(pos2, scope, false));
+			}
+			else{
+				//嵌套子类
+				cnt_scope++;
+				Class* q = deal_class(pos, cnt_scope, true);
+				merge_class(p, q);
+				q->title = p->title + " " + q->title;
+			}
 			if (words[pos].type == WORD_CMT){
 
 				//调用子类后面出现注释,合并子类后加到最后一个属性后面
@@ -418,7 +468,8 @@ Class* deal_class(int& pos, int scope){
 		else if (type == WORD_NAME && words[pos].type == WORD_COLON){
 			//遇到类中属性
 			pos++;
-			Property pp = Property(words[pos - 1].value, -1, deal_var(pos, false, scope, WORD_SEM));
+			string name = words[pos - 2].value;
+			Property pp = Property(name, -1, deal_var(pos, false, scope, WORD_SEM));
 			p->value.push_back(pp);
 			if (words[pos].type == WORD_CMT){
 				//属性后出项注释
@@ -426,8 +477,8 @@ Class* deal_class(int& pos, int scope){
 				pp.comment_name = comments.size();
 			}
 		}
-
 	}
+	return p;
 }
 
 void turn(){
@@ -441,7 +492,8 @@ void turn(){
 		int type = words[pos++].type;
 		//碰到变量
 		if (type == WORD_VAR){
-			deal_var(pos);
+			--pos;
+			deal_var(pos, true, cnt_scope, WORD_SEM);
 		}
 		else if (type == WORD_NAME && words[pos].type == WORD_OP){
 			//函数不储存
@@ -451,7 +503,7 @@ void turn(){
 		else if (type == WORD_NAME && words[pos].type == WORD_OB){
 			//处理类
 			cnt_scope++;
-			deal_class(pos, cnt_scope);
+			deal_class(pos, cnt_scope, true);
 		}
 	}
 }
@@ -463,6 +515,7 @@ void print(){
 
 int main(){
 	freopen("in.txt", "r", stdin);
+	freopen("out.txt", "w", stdout);
 	//初始化
 	init();
 	//将less读入到buf中
