@@ -15,6 +15,7 @@
 #define COLOR       2
 #define STRING      3
 #define OPERATOR    4
+#define PIXEL		5
 
 //word中type的定义
 #define WORD_VAR    0   //变量
@@ -34,6 +35,8 @@
 #define WORD_MIN    14  //减号            -
 #define WORD_DIV    15  //除号or斜杠        /
 #define WORD_CMT    16  //块注释
+#define WORD_PIX	17	//像素
+#define WORD_COLOR	18	//颜色
 using namespace std;
 
 //输入数据缓冲
@@ -73,7 +76,7 @@ struct Var{
 		this->is_stable = true;
 		comment_var = -1;
 		this->type = type;
-		if (type == WORD_NUM){
+		if (type == FLOAT || type == COLOR || type == PIXEL){
 			//小数待处理
 			stringstream ss(_string);
 			ss >> this->_double;
@@ -175,6 +178,11 @@ void scaner(int& pos, int len, int last_type, string name){
 			while (isnumber(ch) || ch == '.'){
 				token.push_back(ch);
 				ch = buf[pos++];
+			}
+			if (buf[pos] == 'p' && buf[pos + 1] == 'x'){
+				pos += 2;
+				type = WORD_PIX;
+				break;
 			}
 			pos--;
 			type = WORD_NUM;
@@ -290,7 +298,7 @@ void scaner(int& pos, int len, int last_type, string name){
 		break;
 	}
 	words.push_back(Word(type, token));
-	cout << type << "     " << token << endl;
+	//cout << type << "     " << token << endl;
 }
 
 void get_words(){
@@ -320,6 +328,7 @@ int check_var(string name, int scope){
 	}
 	return k;
 }
+
 void merge_class(Class* p, Class *q){
 	//合并父类p和子类q
 	if (q->comment_title != -1){
@@ -358,6 +367,9 @@ Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 	int type = words[pos].type;
 	while (type != sem_common || (sem_common == WORD_COMMA && type == WORD_CP)){
 		switch (type){
+		case WORD_COLOR:
+			v->son.push_back(new Var(words[pos].value, COLOR));
+			break;
 		case WORD_VAR:
 			k = check_var(words[pos].value, scope);
 			if (k == -1){
@@ -368,19 +380,25 @@ Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 			v->son.push_back(var[k].value);
 			break;
 		case WORD_NUM:
-			v->son.push_back(new Var(words[pos].value, WORD_NUM));
+			v->son.push_back(new Var(words[pos].value, FLOAT));
 			break;
 		case  WORD_PLUS:
-			v->son.push_back(new Var("+", WORD_PLUS));
+			v->son.push_back(new Var("+", OPERATOR));
 			break;
 		case WORD_MIN:
-			v->son.push_back(new Var("-", WORD_MIN));
+			v->son.push_back(new Var("-", OPERATOR));
 			break;
 		case  WORD_MUL:
-			v->son.push_back(new Var("*", WORD_MUL));
+			v->son.push_back(new Var("*", OPERATOR));
 			break;
 		case WORD_DIV:
-			v->son.push_back(new Var("*", WORD_DIV));
+			v->son.push_back(new Var("*", OPERATOR));
+			break;
+		case WORD_OP:
+			v->son.push_back(new Var("(", OPERATOR));
+			break;
+		case WORD_CP:
+			v->son.push_back(new Var(")", OPERATOR));
 			break;
 		case WORD_STR:
 			string s = words[pos].value;
@@ -392,7 +410,7 @@ Var* deal_var(int& pos, bool is_left, int scope, int sem_common){
 				}
 				else{
 					if (t.size() != 0){
-						v->son.push_back(new Var(t, WORD_STR));
+						v->son.push_back(new Var(t, STRING));
 						t.clear();
 					}
 					i++;
